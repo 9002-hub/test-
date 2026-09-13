@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ledger POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF2EF;
+    --surface:#FFFFFF;
+    --ink:#16211F;
+    --muted:#6B7570;
+    --border:#DCE3DE;
+    --primary:#1F4B43;
+    --primary-dark:#153733;
+    --accent:#E2A33B;
+    --accent-dark:#C4872A;
+    --danger:#B3413A;
+    --success:#3E7D5A;
+    --radius:10px;
+    --radius-lg:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  .num, .mono{ font-family:'IBM Plex Mono',monospace; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select{ font-family:inherit; }
+  ::selection{ background:var(--accent); color:var(--ink); }
+
+  /* ---------- App shell ---------- */
+  #app{ min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar{
+    background:var(--primary);
+    color:#fff;
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-shrink:0;
+  }
+  .topbar .brand{ display:flex; align-items:center; gap:10px; }
+  .topbar .brand .mark{
+    width:30px;height:30px;border-radius:8px;background:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:var(--primary-dark);font-size:15px;
+  }
+  .topbar .brand .name{ font-weight:600; font-size:16px; letter-spacing:.2px; }
+  .topbar .who{ display:flex; align-items:center; gap:10px; font-size:13px; opacity:.92; }
+  .topbar .who .role-pill{
+    background:rgba(255,255,255,.15); padding:2px 9px; border-radius:20px; font-size:11px;
+  }
+  .topbar .logout{
+    background:none;border:1px solid rgba(255,255,255,.4);color:#fff;
+    padding:6px 12px;border-radius:20px;font-size:13px;
+  }
+
+  main.content{ flex:1; padding:14px; padding-bottom:88px; max-width:980px; width:100%; margin:0 auto; }
+
+  .bottomnav{
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--surface); border-top:1px solid var(--border);
+    display:flex; padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    z-index:40;
+  }
+  .bottomnav button{
+    flex:1; background:none; border:none; display:flex; flex-direction:column;
+    align-items:center; gap:3px; padding:8px 2px; border-radius:10px; color:var(--muted);
+    font-size:11.5px;
+  }
+  .bottomnav button.active{ color:var(--primary); background:#EEF6F2; }
+  .bottomnav svg{ width:20px; height:20px; }
+
+  /* ---------- Generic components ---------- */
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:16px;
+  }
+  .section-title{ font-size:13px; font-weight:600; text-transform:none; color:var(--muted); margin:0 0 10px; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:none; border-radius:var(--radius); padding:11px 16px; font-size:14px; font-weight:600;
+  }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-primary:active{ background:var(--primary-dark); }
+  .btn-accent{ background:var(--accent); color:#231404; }
+  .btn-accent:active{ background:var(--accent-dark); }
+  .btn-ghost{ background:transparent; color:var(--primary); border:1px solid var(--border); }
+  .btn-danger{ background:transparent; color:var(--danger); border:1px solid #E7C9C6; }
+  .btn-block{ width:100%; }
+  .btn:disabled{ opacity:.45; }
+
+  input[type=text], input[type=number], input[type=password], select{
+    width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:var(--radius);
+    font-size:14px; background:#fff; color:var(--ink);
+  }
+  input:focus, select:focus{ outline:2px solid var(--primary); outline-offset:1px; }
+  label{ font-size:12.5px; color:var(--muted); display:block; margin-bottom:5px; }
+  .field{ margin-bottom:12px; }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+
+  .badge{ font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; }
+  .badge-low{ background:#FBE9E7; color:var(--danger); }
+  .badge-ok{ background:#E8F3EC; color:var(--success); }
+
+  .empty{ text-align:center; color:var(--muted); padding:32px 12px; font-size:14px; }
+
+  /* ---------- Login ---------- */
+  .login-wrap{
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--primary); padding:24px;
+  }
+  .login-brand{ text-align:center; margin-bottom:28px; }
+  .login-brand .mark{
+    width:56px;height:56px;border-radius:14px;background:var(--accent);margin:0 auto 12px;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;color:var(--primary-dark);
+  }
+  .login-brand h1{ color:#fff; font-size:22px; margin:0 0 4px; }
+  .login-brand p{ color:rgba(255,255,255,.7); margin:0; font-size:13px; }
+  .login-card{ background:var(--surface); border-radius:var(--radius-lg); padding:20px; width:100%; max-width:340px; }
+  .user-pick{
+    display:flex; align-items:center; gap:12px; width:100%; padding:13px; border-radius:var(--radius);
+    border:1px solid var(--border); background:#fff; margin-bottom:9px;
+  }
+  .user-pick .avatar{
+    width:36px;height:36px;border-radius:50%;background:#EEF6F2;color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;
+  }
+  .user-pick .info{ text-align:left; flex:1; }
+  .user-pick .info .n{ font-weight:600; font-size:14.5px; }
+  .user-pick .info .r{ font-size:12px; color:var(--muted); }
+  .pin-dots{ display:flex; gap:12px; justify-content:center; margin:18px 0; }
+  .pin-dots .d{ width:14px;height:14px;border-radius:50%;border:2px solid var(--border); }
+  .pin-dots .d.filled{ background:var(--primary); border-color:var(--primary); }
+  .pin-pad{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .pin-pad button{
+    padding:16px 0; border-radius:var(--radius); border:1px solid var(--border); background:#fff;
+    font-size:18px; font-weight:600; font-family:'IBM Plex Mono',monospace;
+  }
+  .pin-pad button:active{ background:#F1F1F1; }
+  .pin-error{ color:var(--danger); font-size:12.5px; text-align:center; margin-top:6px; min-height:16px; }
+  .back-link{ text-align:center; margin-top:12px; }
+  .back-link button{ background:none;border:none;color:var(--muted);font-size:13px;text-decoration:underline; }
+
+  /* ---------- POS ---------- */
+  .pos-grid{ display:grid; grid-template-columns:1fr; gap:14px; }
+  @media(min-width:760px){ .pos-grid{ grid-template-columns:1.3fr 1fr; } }
+  .search-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .search-row input{ flex:1; }
+  .scan-btn{ background:var(--primary); color:#fff; border-radius:var(--radius); border:none; padding:0 14px; }
+  .product-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(min-width:480px){ .product-list{ grid-template-columns:repeat(3,1fr); } }
+  .product-tile{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:12px;
+    text-align:left;
+  }
+  .product-tile:active{ background:#F6F8F6; }
+  .product-tile .pn{ font-size:13.5px; font-weight:600; margin-bottom:6px; line-height:1.25; min-height:34px; }
+  .product-tile .pp{ font-size:14px; color:var(--primary); font-weight:600; }
+  .product-tile .ps{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .product-tile:disabled{ opacity:.4; }
+
+  .cart-panel{ background:#fff; border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; display:flex; flex-direction:column; }
+  .cart-item{ display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .cart-item:last-child{ border-bottom:none; }
+  .cart-item .ci-name{ flex:1; font-size:13.5px; }
+  .cart-item .ci-name .sub{ display:block; font-size:11px; color:var(--muted); }
+  .qty-ctrl{ display:flex; align-items:center; gap:6px; }
+  .qty-ctrl button{ width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:#fff;font-weight:700; }
+  .cart-totals{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:13.5px; }
+  .cart-totals .tline{ display:flex; justify-content:space-between; padding:3px 0; }
+  .cart-totals .tline.grand{ font-size:17px; font-weight:700; margin-top:4px; }
+  .pay-methods{ display:flex; gap:8px; margin:10px 0; }
+  .pay-methods button{ flex:1; padding:9px; border-radius:var(--radius); border:1px solid var(--border); background:#fff; font-size:13px; font-weight:600; }
+  .pay-methods button.sel{ background:var(--primary); color:#fff; border-color:var(--primary); }
+
+  /* ---------- Tables ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-size:11.5px; color:var(--muted); padding:8px 8px; border-bottom:1px solid var(--border); font-weight:600; }
+  td{ padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .icon-btn{ background:none; border:none; color:var(--primary); font-size:13px; font-weight:600; padding:4px 6px; }
+  .icon-btn.danger{ color:var(--danger); }
+
+  /* ---------- Dashboard ---------- */
+  .kpi-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+  @media(min-width:600px){ .kpi-grid{ grid-template-columns:repeat(4,1fr); } }
+  .kpi{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:14px; }
+  .kpi .v{ font-size:21px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .kpi .l{ font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .bar-row .lbl{ width:92px; font-size:12px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar-track{ flex:1; background:#EEF2EF; border-radius:6px; height:16px; overflow:hidden; }
+  .bar-fill{ background:var(--primary); height:100%; border-radius:6px; }
+  .bar-val{ width:56px; text-align:right; font-size:12px; flex-shrink:0; }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,25,22,.55); display:flex; align-items:flex-end;
+    justify-content:center; z-index:100; padding:0;
+  }
+  @media(min-width:600px){ .modal-overlay{ align-items:center; } }
+  .modal{
+    background:#fff; border-radius:18px 18px 0 0; width:100%; max-width:440px; max-height:88vh; overflow-y:auto;
+    padding:20px;
+  }
+  @media(min-width:600px){ .modal{ border-radius:16px; } }
+  .modal h2{ margin:0 0 14px; font-size:17px; }
+  .modal-close{ float:right; background:none; border:none; font-size:20px; color:var(--muted); line-height:1; }
+  .receipt-line{ display:flex; justify-content:space-between; font-size:13px; padding:3px 0; font-family:'IBM Plex Mono',monospace; }
+  .receipt-divider{ border-top:1px dashed var(--border); margin:8px 0; }
+  .toast{
+    position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:10px 18px; border-radius:30px; font-size:13px; z-index:200; box-shadow:0 6px 18px rgba(0,0,0,.2);
+  }
+  .tabs{ display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; }
+  .tabs button{ background:#fff; border:1px solid var(--border); padding:8px 14px; border-radius:20px; font-size:13px; white-space:nowrap; }
+  .tabs button.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .scan-view{ background:#000; border-radius:var(--radius); overflow:hidden; position:relative; margin-bottom:10px; }
+  .scan-view video{ width:100%; display:block; max-height:260px; object-fit:cover; }
+  .scan-hint{ position:absolute; bottom:8px; left:0; right:0; text-align:center; color:#fff; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =========================================================
+   API DATA LAYER
+   The UI remains the same, but users/products/sales/settings now
+   come from the Node.js + Express + PostgreSQL backend.
+========================================================= */
+const API_BASE = localStorage.getItem('ledger_api_base') || '/api';
+const MEM = { pos_settings: {storeName:'My Store', taxRate:0, currency:'$'}, pos_users: [], pos_products: [] };
+
+const Store = {
+  get(key, fallback){
+    return (key in MEM) ? MEM[key] : fallback;
+  },
+  set(key, val){
+    MEM[key] = val;
+  }
+};
+
+async function api(path, options={}){
+  const headers = {'Content-Type':'application/json', ...(options.headers||{})};
+  const token = localStorage.getItem('ledger_access_token');
+  if(token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(API_BASE + path, {...options, headers});
+  } catch (err) {
+    throw new Error('Cannot connect to Ledger POS server. Make sure the project is running.');
+  }
+  let body = null;
+  try { body = await response.json(); } catch(e) {}
+
+  if(!response.ok){
+    if(response.status === 401){
+      localStorage.removeItem('ledger_access_token');
+      S.user = null;
+    }
+    throw new Error(body?.error || `Request failed (${response.status})`);
+  }
+  return body;
+}
+
+async function loadSettings(){
+  try {
+    const settings = await api('/settings');
+    Store.set('pos_settings', {...settings, taxRate:Number(settings.taxRate)});
+    return Store.get('pos_settings');
+  } catch(e) {
+    return Store.get('pos_settings', {storeName:'My Store', taxRate:0, currency:'$'});
+  }
+}
+
+async function refreshProducts(){
+  if(!S.user) return [];
+  const products = await api('/products');
+  Store.set('pos_products', products.map(p => ({
+    ...p,
+    price: Number(p.price),
+    low: p.lowStockLevel
+  })));
+  return Store.get('pos_products', []);
+}
+
+async function refreshUsers(){
+  const users = await api('/admin/users');
+  Store.set('pos_users', users.map(u=>({...u, role:String(u.role).toLowerCase()})));
+  return users;
+}
+
+async function loginWithPin(userId, pin){
+  const result = await api('/auth/login', {
+    method:'POST',
+    body: JSON.stringify({userId, pin})
+  });
+  localStorage.setItem('ledger_access_token', result.token);
+  S.user = {...result.user, role:String(result.user.role).toLowerCase()};
+  S.pinTarget = null;
+  S.pinBuffer = '';
+  S.pinError = '';
+  S.view = 'pos';
+  S.cart = [];
+  await loadSettings();
+  await refreshProducts();
+}
+
+async function bootApp(){
+  const token = localStorage.getItem('ledger_access_token');
+  if(!token){
+    try {
+      Store.set('pos_users', (await api('/auth/users')).map(u=>({...u, role:String(u.role).toLowerCase()})));
+      Store.set('server_error', '');
+    } catch(e) {
+      Store.set('pos_users', []);
+      Store.set('server_error', e.message);
+    }
+    render();
+    return;
+  }
+  try {
+    S.user = await api('/auth/me').then(u=>({...u, role:String(u.role).toLowerCase()}));
+    await loadSettings();
+    await refreshProducts();
+    render();
+  } catch(e) {
+    localStorage.removeItem('ledger_access_token');
+    S.user = null;
+    try { Store.set('pos_users', (await api('/auth/users')).map(u=>({...u, role:String(u.role).toLowerCase()}))); } catch(err) {}
+    render();
+  }
+}
+
+/* Browser seed data removed: PostgreSQL is the single source of truth. */
+
+/* =========================================================
+   APP STATE
+========================================================= */
+let S = {
+  user: null,
+  view: 'pos',
+  cart: [],
+  pinBuffer: '',
+  pinTarget: null,
+  posSearch: '',
+  toast: null,
+  modal: null,     // {type:'receipt'|'productForm'|'userForm'|'scan', data:{}}
+  payMethod: 'Cash',
+  reportRange: 7,
+};
+
+function showToast(msg){
+  S.toast = msg;
+  render();
+  setTimeout(()=>{ S.toast = null; render(); }, 1800);
+}
+
+/* =========================================================
+   RENDER ROOT
+========================================================= */
+function render(){
+  const app = document.getElementById('app');
+  if(!S.user){ app.innerHTML = renderLogin(); attachLoginEvents(); return; }
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark">${(Store.get('pos_settings').storeName||'S')[0].toUpperCase()}</div>
+        <div class="name">${escapeHtml(Store.get('pos_settings').storeName)}</div>
+      </div>
+      <div class="who">
+        <span>${escapeHtml(S.user.name)}</span>
+        <span class="role-pill">${S.user.role}</span>
+        <button class="logout" id="btnLogout">Log out</button>
+      </div>
+    </div>
+    <main class="content" id="content"></main>
+    <nav class="bottomnav">
+      ${navBtn('pos','Sell', iconCart())}
+      ${navBtn('inventory','Inventory', iconBox())}
+      ${navBtn('reports','Reports', iconChart())}
+      ${String(S.user.role).toLowerCase()==='admin' ? navBtn('admin','Admin', iconGear()) : ''}
+    </nav>
+    ${S.toast ? `<div class="toast">${escapeHtml(S.toast)}</div>` : ''}
+    ${S.modal ? renderModal() : ''}
+  `;
+
+  const content = document.getElementById('content');
+  if(S.view==='pos') content.innerHTML = renderPOS();
+  if(S.view==='inventory') content.innerHTML = renderInventory();
+  if(S.view==='reports') content.innerHTML = renderReports();
+  if(S.view==='admin' && String(S.user.role).toLowerCase()==='admin') content.innerHTML = renderAdmin();
+
+  attachShellEvents();
+  attachViewEvents();
+  if(S.modal) attachModalEvents();
+}
+
+function navBtn(view,label,icon){
+  return `<button class="${S.view===view?'active':''}" data-nav="${view}">${icon}<span>${label}</span></button>`;
+}
+function escapeHtml(str){
+  return String(str??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function money(n){ const c = Store.get('pos_settings').currency||'$'; return c + Number(n).toFixed(2); }
+
+/* =========================================================
+   ICONS (inline SVG, stroke uses currentColor)
+========================================================= */
+function iconCart(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`; }
+function iconBox(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`; }
+function iconChart(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>`; }
+function iconGear(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`; }
+function iconScan(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V4a1 1 0 0 1 1-1h3"/><path d="M17 3h3a1 1 0 0 1 1 1v3"/><path d="M21 17v3a1 1 0 0 1-1 1h-3"/><path d="M7 21H4a1 1 0 0 1-1-1v-3"/><line x1="4" y1="12" x2="20" y2="12"/></svg>`; }
+
+/* =========================================================
+   LOGIN
+========================================================= */
+function renderLogin(){
+  const serverError = Store.get('server_error', '');
+  const users = Store.get('pos_users', []);
+  if(!S.pinTarget){
+    return `
+      <div class="login-wrap">
+      ${serverError ? `<div class="card" style="margin-bottom:12px;color:#9a3412;background:#fff7ed;border-color:#fdba74;"><strong>Server unavailable</strong><div style="margin-top:4px;font-size:13px;">${escapeHtml(serverError)}</div></div>` : ''}
+        <div class="login-brand">
+          <div class="mark">${(Store.get('pos_settings').storeName||'S')[0].toUpperCase()}</div>
+          <h1>${escapeHtml(Store.get('pos_settings').storeName)}</h1>
+          <p>Point of sale — select your profile</p>
+        </div>
+        <div class="login-card">
+          ${users.map(u=>`
+            <button class="user-pick" data-pick="${u.id}">
+              <div class="avatar">${escapeHtml(u.name[0])}</div>
+              <div class="info"><div class="n">${escapeHtml(u.name)}</div><div class="r">${u.role}</div></div>
+              <span>›</span>
+            </button>`).join('')}
+        </div>
+      </div>`;
+  }
+  const target = users.find(u=>u.id===S.pinTarget);
+  const dots = [0,1,2,3].map(i=>`<div class="d ${i<S.pinBuffer.length?'filled':''}"></div>`).join('');
+  return `
+    <div class="login-wrap">
+      <div class="login-brand">
+        <div class="mark">${escapeHtml(target.name[0])}</div>
+        <h1>${escapeHtml(target.name)}</h1>
+        <p>Enter your 4-digit PIN</p>
+      </div>
+      <div class="login-card">
+        <div class="pin-dots">${dots}</div>
+        <div class="pin-error">${S.pinError||''}</div>
+        <div class="pin-pad">
+          ${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-pin="${n}">${n}</button>`).join('')}
+          <button data-pin="clear">C</button>
+          <button data-pin="0">0</button>
+          <button data-pin="back">⌫</button>
+        </div>
+        <div class="back-link"><button id="backToUsers">← choose a different profile</button></div>
+      </div>
+    </div>`;
+}
+
+function attachLoginEvents(){
+  document.querySelectorAll('[data-pick]').forEach(el=>{
+    el.onclick = async ()=>{ S.pinTarget = el.dataset.pick; S.pinBuffer=''; S.pinError=''; render(); };
+  });
+  const back = document.getElementById('backToUsers');
+  if(back) back.onclick = ()=>{ S.pinTarget=null; S.pinBuffer=''; render(); };
+  document.querySelectorAll('[data-pin]').forEach(el=>{
+    el.onclick = async ()=>{
+      const k = el.dataset.pin;
+      if(k==='clear'){ S.pinBuffer=''; }
+      else if(k==='back'){ S.pinBuffer = S.pinBuffer.slice(0,-1); }
+      else if(S.pinBuffer.length<4){ S.pinBuffer += k; }
+      if(S.pinBuffer.length===4){
+        const users = Store.get('pos_users', []);
+        const target = users.find(u=>u.id===S.pinTarget);
+        if(target){
+          try {
+            await loginWithPin(target.id, S.pinBuffer);
+            render();
+            return;
+          } catch(e) {
+            S.pinError = e.message || 'Incorrect PIN — try again';
+            S.pinBuffer='';
+          }
+        } else {
+          S.pinError = 'User not found';
+          S.pinBuffer='';
+        }
+      }
+      render();
+    };
+  });
+}
+
+/* =========================================================
+   POS / CHECKOUT
+========================================================= */
+function renderPOS(){
+  const products = Store.get('pos_products', []);
+  const q = S.posSearch.trim().toLowerCase();
+  const filtered = products.filter(p=>
+    !q || p.name.toLowerCase().includes(q) || p.barcode.includes(q)
+  );
+  const tax = Store.get('pos_settings').taxRate||0;
+  const subtotal = S.cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const taxAmt = subtotal * (tax/100);
+  const total = subtotal + taxAmt;
+
+  return `
+    <div class="pos-grid">
+      <div>
+        <div class="search-row">
+          <input type="text" id="posSearch" placeholder="Search product or scan barcode…" value="${escapeHtml(S.posSearch)}">
+          <button class="scan-btn" id="btnOpenScan">${iconScan()}</button>
+        </div>
+        <div class="product-list">
+          ${filtered.length? filtered.map(p=>`
+            <button class="product-tile" data-add="${p.id}" ${p.stock<=0?'disabled':''}>
+              <div class="pn">${escapeHtml(p.name)}</div>
+              <div class="pp num">${money(p.price)}</div>
+              <div class="ps">${p.stock<=0?'Out of stock':'Stock: '+p.stock}</div>
+            </button>`).join('') : `<div class="empty">No products match “${escapeHtml(S.posSearch)}”.</div>`}
+        </div>
+      </div>
+
+      <div class="cart-panel">
+        <div class="section-title">Current sale</div>
+        ${S.cart.length===0 ? `<div class="empty">Cart is empty.<br>Tap a product to add it.</div>` : S.cart.map(i=>`
+          <div class="cart-item">
+            <div class="ci-name">${escapeHtml(i.name)}<span class="sub num">${money(i.price)} each</span></div>
+            <div class="qty-ctrl">
+              <button data-dec="${i.id}">−</button>
+              <span class="num">${i.qty}</span>
+              <button data-inc="${i.id}">+</button>
+            </div>
+            <div class="num" style="width:56px;text-align:right;">${money(i.price*i.qty)}</div>
+          </div>`).join('')}
+
+        ${S.cart.length? `
+          <div class="cart-totals">
+            <div class="tline"><span>Subtotal</span><span class="num">${money(subtotal)}</span></div>
+            <div class="tline"><span>Tax (${tax}%)</span><span class="num">${money(taxAmt)}</span></div>
+            <div class="tline grand"><span>Total</span><span class="num">${money(total)}</span></div>
+          </div>
+          <div class="pay-methods">
+            ${['Cash','Card','Mobile'].map(m=>`<button data-pay="${m}" class="${S.payMethod===m?'sel':''}">${m}</button>`).join('')}
+          </div>
+          <button class="btn btn-primary btn-block" id="btnCheckout">Charge ${money(total)}</button>
+          <button class="btn btn-ghost btn-block" style="margin-top:8px;" id="btnClearCart">Clear sale</button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function attachPOSEvents(){
+  const search = document.getElementById('posSearch');
+  if(search){
+    search.oninput = async (e)=>{
+      S.posSearch = e.target.value;
+      try {
+        const products = await api('/products?q=' + encodeURIComponent(S.posSearch.trim()));
+        Store.set('pos_products', products.map(p=>({...p, price:Number(p.price), low:p.lowStockLevel})));
+      } catch(err) { showToast(err.message); }
+      render();
+      const input = document.getElementById('posSearch');
+      if(input){ input.focus(); input.selectionStart = input.value.length; }
+    };
+    search.onkeydown = async (e)=>{
+      if(e.key==='Enter'){
+        // barcode-scanner-as-keyboard support: exact barcode match on Enter
+        try {
+          const match = await api('/products/barcode/' + encodeURIComponent(S.posSearch.trim()));
+          addToCart(match.id);
+          S.posSearch='';
+          render();
+        } catch(e) {
+          showToast(e.message || 'Product not found');
+        }
+      }
+    };
+  }
+  const scanBtn = document.getElementById('btnOpenScan');
+  if(scanBtn) scanBtn.onclick = ()=>{ S.modal={type:'scan'}; render(); };
+
+  document.querySelectorAll('[data-add]').forEach(el=>{
+    el.onclick = ()=>{ addToCart(el.dataset.add); render(); };
+  });
+  document.querySelectorAll('[data-inc]').forEach(el=> el.onclick=()=>{ changeQty(el.dataset.inc,1); render(); });
+  document.querySelectorAll('[data-dec]').forEach(el=> el.onclick=()=>{ changeQty(el.dataset.dec,-1); render(); });
+  document.querySelectorAll('[data-pay]').forEach(el=> el.onclick=()=>{ S.payMethod = el.dataset.pay; render(); });
+
+  const clearBtn = document.getElementById('btnClearCart');
+  if(clearBtn) clearBtn.onclick = ()=>{ S.cart=[]; render(); };
+
+  const checkoutBtn = document.getElementById('btnCheckout');
+  if(checkoutBtn) checkoutBtn.onclick = completeSale;
+}
+
+function addToCart(productId){
+  const products = Store.get('pos_products', []);
+  const p = products.find(x=>x.id===productId);
+  if(!p || p.stock<=0) return;
+  const existing = S.cart.find(i=>i.id===productId);
+  const inCartQty = existing?existing.qty:0;
+  if(inCartQty+1 > p.stock){ showToast('Not enough stock'); return; }
+  if(existing) existing.qty += 1;
+  else S.cart.push({id:p.id, name:p.name, price:p.price, qty:1});
+}
+function changeQty(productId, delta){
+  const item = S.cart.find(i=>i.id===productId);
+  if(!item) return;
+  const products = Store.get('pos_products', []);
+  const p = products.find(x=>x.id===productId);
+  const next = item.qty + delta;
+  if(next<=0){ S.cart = S.cart.filter(i=>i.id!==productId); return; }
+  if(p && next>p.stock){ showToast('Not enough stock'); return; }
+  item.qty = next;
+}
+
+async function completeSale(){
+  if(S.cart.length===0) return;
+
+  const paymentMap = {Cash:'CASH', Card:'CARD', Mobile:'MOBILE'};
+  try {
+    const sale = await api('/sales', {
+      method:'POST',
+      body: JSON.stringify({
+        items: S.cart.map(i=>({productId:i.id, qty:i.qty})),
+        payment: paymentMap[S.payMethod] || 'CASH'
+      })
+    });
+
+    await refreshProducts();
+
+    const normalized = {
+      ...sale,
+      subtotal:Number(sale.subtotal),
+      tax:Number(sale.tax),
+      total:Number(sale.total),
+      payment: S.payMethod,
+      cashierName: sale.cashier?.name || S.user.name,
+      items: sale.items.map(i=>({...i, price:Number(i.price)}))
+    };
+
+    S.modal = {type:'receipt', data:normalized};
+    S.cart = [];
+    render();
+  } catch(e) {
+    await refreshProducts().catch(()=>{});
+    showToast(e.message || 'Checkout failed');
+    render();
+  }
+}
+
+/* ---- Barcode scan modal (real camera + BarcodeDetector where supported) ---- */
+let scanStream = null;
+function stopScan(){
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+}
+async function startScan(){
+  const video = document.getElementById('scanVideo');
+  const statusEl = document.getElementById('scanStatus');
+  if(!('BarcodeDetector' in window)){
+    if(statusEl) statusEl.textContent = "Camera scanning isn't supported in this preview. Use manual entry below \u2014 it will work automatically once this is installed as an app.";
+    return;
+  }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    video.srcObject = scanStream;
+    await video.play();
+    const detector = new BarcodeDetector();
+    const loop = async ()=>{
+      if(!scanStream) return;
+      try{
+        const codes = await detector.detect(video);
+        if(codes.length){
+          const val = codes[0].rawValue;
+          stopScan();
+          const products = Store.get('pos_products', []);
+          const match = products.find(p=>p.barcode===val);
+          if(match){ addToCart(match.id); showToast('Added '+match.name); S.modal=null; render(); }
+          else { showToast('No product with barcode '+val); }
+          return;
+        }
+      }catch(err){}
+      requestAnimationFrame(loop);
+    };
+    loop();
+  }catch(err){
+    if(statusEl) statusEl.textContent = 'Camera unavailable (' + err.message + '). Use manual entry below.';
+  }
+}
+
+/* =========================================================
+   INVENTORY
+========================================================= */
+function renderInventory(){
+  const products = Store.get('pos_products', []).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const isAdmin = String(S.user.role).toLowerCase()==='admin';
+  return `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="section-title" style="margin:0;">Products (${products.length})</div>
+        ${isAdmin? `<button class="btn btn-accent" id="btnAddProduct">+ Add product</button>`:''}
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th>Barcode</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+        <tbody>
+          ${products.map(p=>`
+            <tr>
+              <td>${escapeHtml(p.name)}<br><span style="color:var(--muted);font-size:11px;">${escapeHtml(p.category||'')}</span></td>
+              <td class="num">${escapeHtml(p.barcode)}</td>
+              <td class="num">${money(p.price)}</td>
+              <td>
+                <span class="num">${p.stock}</span>
+                ${p.stock<=(p.low||0) ? `<span class="badge badge-low" style="margin-left:6px;">Low</span>` : ''}
+              </td>
+              <td>
+                <button class="icon-btn" data-adjust="${p.id}">Adjust</button>
+                ${isAdmin? `<button class="icon-btn" data-edit="${p.id}">Edit</button><button class="icon-btn danger" data-del="${p.id}">Delete</button>`:''}
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      ${products.length===0? '<div class="empty">No products yet.</div>':''}
+    </div>
+  `;
+}
+
+function attachInventoryEvents(){
+  const addBtn = document.getElementById('btnAddProduct');
+  if(addBtn) addBtn.onclick = ()=>{ S.modal={type:'productForm', data:{}}; render(); };
+  document.querySelectorAll('[data-edit]').forEach(el=>{
+    el.onclick = async ()=>{
+      const p = Store.get('pos_products',[]).find(x=>x.id===el.dataset.edit);
+      S.modal = {type:'productForm', data:p}; render();
+    };
+  });
+  document.querySelectorAll('[data-del]').forEach(el=>{
+    el.onclick = async ()=>{
+      if(!confirm('Delete this product?')) return;
+      try {
+        await api('/products/'+el.dataset.del, {method:'DELETE'});
+        await refreshProducts();
+        render();
+        showToast('Product deleted');
+      } catch(e) { showToast(e.message || 'Could not delete product'); }
+    };
+  });
+  document.querySelectorAll('[data-adjust]').forEach(el=>{
+    el.onclick = ()=>{
+      const p = Store.get('pos_products',[]).find(x=>x.id===el.dataset.adjust);
+      S.modal = {type:'stockAdjust', data:p}; render();
+    };
+  });
+}
+
+/* =========================================================
+   REPORTS
+========================================================= */
+function renderReports(){
+  // Reports are loaded asynchronously; render cached data while requesting fresh data.
+  const isAdmin = String(S.user.role).toLowerCase()==='admin';
+  const cached = Store.get('report_summary_'+S.reportRange, null);
+
+  if(!cached){
+    setTimeout(async ()=>{
+      try {
+        const summary = await api('/reports/summary?days='+S.reportRange);
+        Store.set('report_summary_'+S.reportRange, summary);
+        render();
+      } catch(e) { showToast(e.message); }
+    }, 0);
+  }
+
+  const data = cached || {
+    todayRevenue:0, todayTransactions:0, rangeRevenue:0,
+    averageTicket:0, topProducts:[]
+  };
+
+  return `
+    <div class="tabs">
+      ${[7,14,30].map(r=>`<button data-range="${r}" class="${S.reportRange===r?'active':''}">${r} days</button>`).join('')}
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="v">${money(data.todayRevenue)}</div><div class="l">Today's revenue</div></div>
+      <div class="kpi"><div class="v">${data.todayTransactions}</div><div class="l">Today's transactions</div></div>
+      <div class="kpi"><div class="v">${money(data.rangeRevenue)}</div><div class="l">${S.reportRange}-day revenue</div></div>
+      <div class="kpi"><div class="v">${money(data.averageTicket)}</div><div class="l">Avg. ticket</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Top products</div>
+      ${data.topProducts.length ? data.topProducts.map(p=>`
+        <div class="bar-row">
+          <div class="lbl">${escapeHtml(p.name)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, (p.qty/(data.topProducts[0]?.qty||1))*100).toFixed(1)}%"></div></div>
+          <div class="bar-val num">${p.qty} sold</div>
+        </div>`).join('') : '<div class="empty">No sales in this range yet.</div>'}
+    </div>
+  `;
+}
+function attachReportsEvents(){
+  document.querySelectorAll('[data-range]').forEach(el=>{
+    el.onclick = ()=>{
+      S.reportRange = parseInt(el.dataset.range,10);
+      render();
+    };
+  });
+}
+
+/* =========================================================
+   ADMIN
+========================================================= */
+function renderAdmin(){
+  const users = Store.get('pos_users', []);
+  if(users.length===0){ setTimeout(()=>refreshUsers().then(render).catch(e=>showToast(e.message)),0); }
+  const settings = Store.get('pos_settings');
+  return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="section-title" style="margin:0;">Staff accounts</div>
+        <button class="btn btn-accent" id="btnAddUser">+ Add user</button>
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th>PIN</th><th></th></tr></thead>
+        <tbody>
+          ${users.map(u=>`
+            <tr>
+              <td>${escapeHtml(u.name)}</td>
+              <td>${u.role}</td>
+              <td class="num">••••</td>
+              <td>
+                <button class="icon-btn" data-edituser="${u.id}">Edit</button>
+                ${users.length>1?`<button class="icon-btn danger" data-deluser="${u.id}">Delete</button>`:''}
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Store settings</div>
+      <div class="field">
+        <label>Store name</label>
+        <input type="text" id="setStoreName" value="${escapeHtml(settings.storeName)}">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Tax rate (%)</label>
+          <input type="number" id="setTax" value="${settings.taxRate}" step="0.1" min="0">
+        </div>
+        <div class="field">
+          <label>Currency symbol</label>
+          <input type="text" id="setCurrency" value="${escapeHtml(settings.currency)}">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="btnSaveSettings">Save settings</button>
+    </div>
+  `;
+}
+
+function attachAdminEvents(){
+  const addUser = document.getElementById('btnAddUser');
+  if(addUser) addUser.onclick = ()=>{ S.modal={type:'userForm', data:{}}; render(); };
+  document.querySelectorAll('[data-edituser]').forEach(el=>{
+    el.onclick = ()=>{
+      const u = Store.get('pos_users',[]).find(x=>x.id===el.dataset.edituser);
+      S.modal = {type:'userForm', data:u}; render();
+    };
+  });
+  document.querySelectorAll('[data-deluser]').forEach(el=>{
+    el.onclick = async ()=>{
+      if(!confirm('Delete this user?')) return;
+      try {
+        await api('/admin/users/'+el.dataset.deluser, {method:'DELETE'});
+        await refreshUsers();
+        render();
+        showToast('User deleted');
+      } catch(e) { showToast(e.message || 'Could not delete user'); }
+    };
+  });
+  const saveSettings = document.getElementById('btnSaveSettings');
+  if(saveSettings) saveSettings.onclick = async ()=>{
+    const settings = {
+      storeName: document.getElementById('setStoreName').value.trim() || 'My Store',
+      taxRate: parseFloat(document.getElementById('setTax').value)||0,
+      currency: document.getElementById('setCurrency').value.trim() || '$'
+    };
+    try {
+      const saved = await api('/admin/settings', {method:'PUT', body:JSON.stringify(settings)});
+      Store.set('pos_settings', {...saved, taxRate:Number(saved.taxRate)});
+      render();
+      showToast('Settings saved');
+    } catch(e) { showToast(e.message || 'Could not save settings'); }
+  };
+}
+
+/* =========================================================
+   MODALS
+========================================================= */
+function renderModal(){
+  const m = S.modal;
+  if(m.type==='receipt') return renderReceiptModal(m.data);
+  if(m.type==='productForm') return renderProductFormModal(m.data);
+  if(m.type==='userForm') return renderUserFormModal(m.data);
+  if(m.type==='stockAdjust') return renderStockAdjustModal(m.data);
+  if(m.type==='scan') return renderScanModal();
+  return '';
+}
+
+function renderReceiptModal(sale){
+  const settings = Store.get('pos_settings');
+  return `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <h2>Sale complete</h2>
+        <div style="text-align:center; margin-bottom:8px;">
+          <div style="font-weight:600;">${escapeHtml(settings.storeName)}</div>
+          <div style="font-size:12px; color:var(--muted);">${new Date(sale.timestamp).toLocaleString()}</div>
+          <div style="font-size:12px; color:var(--muted);">Served by ${escapeHtml(sale.cashierName)}</div>
+        </div>
+        <div class="receipt-divider"></div>
+        ${sale.items.map(i=>`
+          <div class="receipt-line"><span>${escapeHtml(i.name)} × ${i.qty}</span><span>${money(i.price*i.qty)}</span></div>
+        `).join('')}
+        <div class="receipt-divider"></div>
+        <div class="receipt-line"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div>
+        <div class="receipt-line"><span>Tax</span><span>${money(sale.tax)}</span></div>
+        <div class="receipt-line" style="font-weight:700; font-size:15px;"><span>Total</span><span>${money(sale.total)}</span></div>
+        <div class="receipt-line"><span>Paid via</span><span>${sale.payment}</span></div>
+        <button class="btn btn-primary btn-block" style="margin-top:16px;" id="btnNewSale">New sale</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderProductFormModal(p){
+  const isEdit = !!p.id;
+  return `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <h2>${isEdit?'Edit product':'Add product'}</h2>
+        <div class="field"><label>Name</label><input type="text" id="pfName" value="${escapeHtml(p.name||'')}"></div>
+        <div class="row">
+          <div class="field"><label>Barcode</label><input type="text" id="pfBarcode" value="${escapeHtml(p.barcode||'')}"></div>
+          <div class="field"><label>Category</label><input type="text" id="pfCategory" value="${escapeHtml(p.category||'')}"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Price</label><input type="number" id="pfPrice" step="0.01" min="0" value="${p.price??''}"></div>
+          <div class="field"><label>Stock</label><input type="number" id="pfStock" min="0" value="${p.stock??''}"></div>
+        </div>
+        <div class="field"><label>Low-stock alert below</label><input type="number" id="pfLow" min="0" value="${p.low??5}"></div>
+        <button class="btn btn-primary btn-block" id="btnSaveProduct">${isEdit?'Save changes':'Add product'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderUserFormModal(u){
+  const isEdit = !!u.id;
+  return `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <h2>${isEdit?'Edit user':'Add user'}</h2>
+        <div class="field"><label>Name</label><input type="text" id="ufName" value="${escapeHtml(u.name||'')}"></div>
+        <div class="field"><label>Role</label>
+          <select id="ufRole">
+            <option value="cashier" ${String(u.role).toLowerCase()==='cashier'?'selected':''}>Cashier</option>
+            <option value="admin" ${String(u.role).toLowerCase()==='admin'?'selected':''}>Admin</option>
+          </select>
+        </div>
+        <div class="field"><label>4-digit PIN</label><input type="text" id="ufPin" maxlength="4" value="${escapeHtml(u.pin||'')}"></div>
+        <button class="btn btn-primary btn-block" id="btnSaveUser">${isEdit?'Save changes':'Add user'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderStockAdjustModal(p){
+  return `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <h2>Adjust stock — ${escapeHtml(p.name)}</h2>
+        <div class="field"><label>Current stock: <b class="num">${p.stock}</b></label></div>
+        <div class="field"><label>New stock count</label><input type="number" id="saNew" min="0" value="${p.stock}"></div>
+        <button class="btn btn-primary btn-block" id="btnSaveStock">Save</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderScanModal(){
+  return `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">×</button>
+        <h2>Scan barcode</h2>
+        <div class="scan-view">
+          <video id="scanVideo" playsinline muted></video>
+        </div>
+        <div id="scanStatus" style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Point the camera at a barcode…</div>
+        <div class="field"><label>Or enter barcode manually</label>
+          <div class="row">
+            <input type="text" id="manualBarcode" placeholder="e.g. 100001">
+            <button class="btn btn-primary" id="btnManualAdd" style="flex:0 0 auto;">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function attachModalEvents(){
+  const overlay = document.getElementById('modalOverlay');
+  const close = document.getElementById('modalClose');
+  const closeModal = ()=>{ stopScan(); S.modal=null; render(); };
+  if(close) close.onclick = closeModal;
+  if(overlay) overlay.onclick = (e)=>{ if(e.target===overlay) closeModal(); };
+
+  const newSale = document.getElementById('btnNewSale');
+  if(newSale) newSale.onclick = closeModal;
+
+  const saveProduct = document.getElementById('btnSaveProduct');
+  if(saveProduct) saveProduct.onclick = async ()=>{
+    const name = document.getElementById('pfName').value.trim();
+    const barcode = document.getElementById('pfBarcode').value.trim();
+    const category = document.getElementById('pfCategory').value.trim();
+    const price = parseFloat(document.getElementById('pfPrice').value)||0;
+    const stock = parseInt(document.getElementById('pfStock').value)||0;
+    const low = parseInt(document.getElementById('pfLow').value)||0;
+    if(!name || !barcode){ showToast('Name and barcode are required'); return; }
+    try {
+      const payload = {name, barcode, category, price, stock, lowStockLevel:low};
+      if(S.modal.data.id){
+        await api('/products/'+S.modal.data.id, {method:'PUT', body:JSON.stringify(payload)});
+      } else {
+        await api('/products', {method:'POST', body:JSON.stringify(payload)});
+      }
+      await refreshProducts();
+      S.modal=null; render(); showToast('Product saved');
+    } catch(e) { showToast(e.message || 'Could not save product'); }
+  };
+
+  const saveUser = document.getElementById('btnSaveUser');
+  if(saveUser) saveUser.onclick = async ()=>{
+    const name = document.getElementById('ufName').value.trim();
+    const role = document.getElementById('ufRole').value;
+    const pin = document.getElementById('ufPin').value.trim();
+    if(!name || !/^\d{4}$/.test(pin)){ showToast('Name and a 4-digit PIN are required'); return; }
+    try {
+      if(S.modal.data.id){
+        await api('/admin/users/'+S.modal.data.id, {
+          method:'PUT',
+          body:JSON.stringify({name, role:role.toUpperCase(), pin})
+        });
+      } else {
+        await api('/admin/users', {
+          method:'POST',
+          body:JSON.stringify({name, role:role.toUpperCase(), pin})
+        });
+      }
+      await refreshUsers();
+      S.modal=null; render(); showToast('User saved');
+    } catch(e) { showToast(e.message || 'Could not save user'); }
+  };
+
+  const saveStock = document.getElementById('btnSaveStock');
+  if(saveStock) saveStock.onclick = async ()=>{
+    const val = parseInt(document.getElementById('saNew').value);
+    if(isNaN(val) || val<0){ showToast('Enter a valid number'); return; }
+    try {
+      await api('/products/'+S.modal.data.id+'/stock', {
+        method:'PATCH',
+        body:JSON.stringify({stock:val})
+      });
+      await refreshProducts();
+      S.modal=null; render(); showToast('Stock updated');
+    } catch(e) { showToast(e.message || 'Could not update stock'); }
+  };
+
+  if(S.modal.type==='scan'){
+    startScan();
+    const manualAdd = document.getElementById('btnManualAdd');
+    manualAdd.onclick = async ()=>{
+      const val = document.getElementById('manualBarcode').value.trim();
+      if(!val) return;
+      try {
+        const match = await api('/products/barcode/'+encodeURIComponent(val));
+        await refreshProducts();
+        stopScan(); addToCart(match.id); S.modal=null; render(); showToast('Added '+match.name);
+      } catch(e) { showToast(e.message || 'No product with that barcode'); }
+    };
+  }
+}
+
+/* =========================================================
+   SHELL + VIEW EVENT WIRING
+========================================================= */
+function attachShellEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=>{
+    el.onclick = ()=>{ S.view = el.dataset.nav; render(); };
+  });
+  const logout = document.getElementById('btnLogout');
+  if(logout) logout.onclick = ()=>{
+    localStorage.removeItem('ledger_access_token');
+    S.user=null; S.cart=[]; S.view='pos'; S.pinTarget=null; S.pinBuffer='';
+    try { Store.set('pos_users', []); } catch(e) {}
+    render();
+  };
+}
+function attachViewEvents(){
+  if(S.view==='pos') attachPOSEvents();
+  if(S.view==='inventory') attachInventoryEvents();
+  if(S.view==='reports') attachReportsEvents();
+  if(S.view==='admin') attachAdminEvents();
+}
+
+bootApp().catch(err=>{ console.error(err); const app=document.getElementById('app'); if(app) app.innerHTML='<div style="padding:40px;font-family:system-ui"><h2>Ledger POS could not start</h2><p>'+escapeHtml(err.message||String(err))+'</p><p>Make sure the project is running and the database is available.</p></div>'; });
+</script>
+</body>
+</html>

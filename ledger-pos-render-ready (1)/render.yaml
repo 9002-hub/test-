@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ledger-pos
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledger-pos-db
+          property: connectionString
+
+databases:
+  - name: ledger-pos-db
+    plan: free

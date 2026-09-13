@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  pinHash      String
+  role         Role     @default(CASHIER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sales        Sale[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  barcode       String   @unique
+  category      String?
+  price         Decimal  @db.Decimal(12, 2)
+  stock         Int      @default(0)
+  lowStockLevel Int      @default(5)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  saleItems     SaleItem[]
+  stockMoves    StockMovement[]
+}
+
+model Sale {
+  id          String        @id @default(cuid())
+  timestamp   DateTime      @default(now())
+  cashierId   String
+  subtotal    Decimal       @db.Decimal(12, 2)
+  tax         Decimal       @db.Decimal(12, 2)
+  total       Decimal       @db.Decimal(12, 2)
+  payment     PaymentMethod
+  cashier     User          @relation(fields: [cashierId], references: [id])
+  items       SaleItem[]
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  saleId    String
+  productId String
+  name      String
+  qty       Int
+  price     Decimal  @db.Decimal(12, 2)
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  before    Int
+  change    Int
+  after     Int
+  reason    String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Setting {
+  id         Int      @id @default(1)
+  storeName  String   @default("My Store")
+  taxRate    Decimal  @default(0) @db.Decimal(5, 2)
+  currency   String   @default("$")
+  updatedAt  DateTime @updatedAt
+}
